@@ -29,7 +29,7 @@ String dataMessage;
 #define DS3231_I2C_ADDRESS 0x68
 byte zero = 0x00; //workaround for issue #527
   
-// Data wire is connected to ESP32 GPIO 21
+// Data wire is connected to ESP32 GPIO 32
 #define ONE_WIRE_BUS 32
 // Setup a oneWire instance to communicate with a OneWire device
 OneWire oneWire(ONE_WIRE_BUS);
