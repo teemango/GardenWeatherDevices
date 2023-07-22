@@ -17,7 +17,7 @@
 |----------|:---:          |
 |GND       |4 (GND)        |
 |3V3       |8 (VCC)        |
-|NSS       |16        |
+|NSS       |3 (PB4)        |
 |SCK       |7 (PB2)        |
 |MOSI      |6 (PB1-MISO)   |
 |MISO      |5 (PB0- MOSI)  |
