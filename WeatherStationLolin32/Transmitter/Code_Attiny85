@@ -1,1 +1,205 @@
 
+/*
+Code assembled by Tim Motis, much of which is adapted from that by Quintans (2015):
+
+  Quintans, DJ 2015. Sneesl: An Arduino-based data-logger for rain collectors. Microprocessor software. 
+  https://github.com/DesiQuintans/sneesl-rain-logger. doi:10.5281/zenodo.1204674 
+
+Code related to debouncing of the reed swtich was sourced from: https://www.youtube.com/watch?v=KHrTqdmYoAk&t=872s 
+
+*/
+
+
+// LIBRARIES
+
+#include <TinyLoRa.h>
+#include <TinyWireM.h>
+//#include <avr/wdt.h>  /watchdog
+#include <avr/sleep.h>
+#include "PinChangeInterrupt.h"
+//#include <avr/interrupt.h>
+
+// DEFINITIIONS OF PINS AND VARIABLES
+
+// Rain sensor 
+#define rainPin PB4
+#define ledPin PB3
+volatile byte RainFlag = 0; //detect rain interrupt
+//Define RainHt 
+float RainHt = 0.033058;// rain height in cm per tip 
+int TipCount = 0;
+//unsigned int TipCount = 0; //tipping bucket tip count
+volatile unsigned long ContactBounceTimeRain = 0;
+//#define Tip 0.02806  //replace this number (cm of rain per tip) based on the area of your rain collector;
+                      // Cm of rain per tip = tipping bucket volume in cubic centimeters divided by the 
+                      // catchment area, in square cm, of your rain collector 
+//Watchdog counter
+volatile int watchdog_counter;
+
+//This runs each time the watch dog wakes us up from sleep
+ISR(WDT_vect) {
+  watchdog_counter++;
+}
+
+// #### SETUP ####################################################
+
+/*
+    Error codes (Flashing of the LED connected to the ledPin [pin 5 as designated earlier]):
+    Fast-fast    RTC couldn't be initialised.
+    Fast-slow    SD card couldn't be initialised.
+    2 fast 5 Slow All OK, starting to log data.
+*/
+
+void setup ()
+{
+    sleepNow();
+    watchdog_counter = 0;
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, LOW); 
+    pinMode(rainPin, INPUT);
+    attachPCINT(digitalPinToPCINT(rainPin), recordTip, FALLING); //Note that this works with hardware debouncing via a Schmitt trigger; if you are using software/code
+                                           //to debounce the reed switch, you would type "LOW" instead of "RISING".;
+    //digitalWrite(rainPin, HIGH); // When the switch closes, this pin gets pulled low.
+    //cli();
+    PCMSK |= (1 << rainPin); //Enable interrupt handler for our chosen interrupt pin (PCINT1/PB1/pin 6)
+    GIMSK |= (1 << PCIE); //Enable PCINT in the general interrupt
+
+    //Serial.begin(9600);
+   
+    TinyWireM.begin();
+            
+   // ---- LoRa transceiver -------------------
+    if (!LoRa.begin(915E6)) {
+      while (1);
+    }
+    LoRa.setSyncWord(0xF3);
+    //replace the LoRa.begin(---E-) argument with your location's frequency 
+    //433E6 for Asia
+    //866E6 for Europe
+    //915E6 for North America
+    //Serial.println(".");
+      delay(200);
+    
+    // Change sync word (0xF3) to match the receiver to avoid receiving messages from other LoRa transceivers
+    // ranges from 0-0xFF
+    //LoRa.setSyncWord(0xF3);
+    //Serial.println("LoRa Initializing OK!");
+    LoRaSend();
+    delay (500); 
+
+    // ---- Self-tests complete --------------
+    // Give us some visual indication that everything is okay. If the LED light keeps blinking, check wiring (more often than not, the problem relates to 
+    // incorrect wiring of the SD card module, a non-formatted SD card, or no SD card in the SD card module
+    //ledBlink(ledPin, 5, 500, 100, 500, 100);
+    setup_watchdog(9); //Wake up after 4 seconds
+}
+
+// #### Main loop ################################################
+
+void loop ()
+{  
+    sleepNow();  
+    // I was woken by either a bucket tip or the watchdog timer. Either way, I'm awake.;
+       
+   if (RainFlag == 1) {
+    TipCount++; // incrementa numero basculate
+     RainFlag = 0;
+     //ledBlink();
+   
+  }
+  
+   if(watchdog_counter > 140)
+   {
+    watchdog_counter = 0;
+    LoRaSend();
+    TipCount = -1;
+  } 
+   
+}
+
+// FUNCTIONS CALLED IN SETUP OR THE LOOP
+
+void recordTip()
+{
+    // I heard something. Probably a tip event!
+    // This function would contain software debouncing code would go if you are not debouncing
+    // via hardware (in this case, a Schmitt trigger)
+    //RainFlag = 1;  
+    if((millis() - ContactBounceTimeRain) > 225); {
+      RainFlag = 1;
+      ContactBounceTimeRain = millis();
+    }
+}
+
+void LoRaSend() {
+
+   float Tips = TipCount;
+   float Rain = TipCount*RainHt;
+   delay(250);
+   //float finalVolt = voltMeasure();
+   const int Key = XXXX;  replace with a numerical key (4 digits works) that needs to be the same as in the receiver sketch; will keep 
+   
+   LoRa.beginPacket();
+   LoRa.print (Key);
+   LoRa.print (":");
+   LoRa.print (Tips);
+   LoRa.print (":");
+   LoRa.print (Rain);
+   LoRa.endPacket(); 
+   delay(600);
+}
+
+void sleepNow() 
+{
+  /* Now is the time to set the sleep mode. In the Atmega8 datasheet
+     http://www.atmel.com/dyn/resources/prod_documents/doc2486.pdf on page 35
+     there is a list of sleep modes which explains which clocks and
+     wake up sources are available in which sleep modus.
+     In the avr/sleep.h file, the call names of these sleep modus are to be found:
+     The 5 different modes are:
+         SLEEP_MODE_IDLE         -the least power savings
+         SLEEP_MODE_ADC
+         SLEEP_MODE_PWR_SAVE
+         SLEEP_MODE_STANDBY
+         SLEEP_MODE_PWR_DOWN     -the most power savings
+     For now, we want as much power savings as possible, so we
+     choose the according
+     sleep modus: SLEEP_MODE_PWR_DOWN
+     Timer 2 overflow interrupt is only able to wake up the ATmega in PWR_SAVE
+  */
+  // disable ADC
+  ADCSRA = 0;
+  set_sleep_mode(SLEEP_MODE_IDLE);   // sleep mode is set here
+
+  sleep_enable();          // enables the sleep bit in the mcucr register
+  // so sleep is possible. just a safety pin
+
+  sleep_mode();            // here the device is actually put to sleep!!
+  // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
+  sleep_disable();         // first thing after waking from sleep:
+  // disable sleep...
+}
+
+void setup_watchdog(int timerPrescaler) {
+
+  if (timerPrescaler > 9 ) timerPrescaler = 9; //Correct incoming amount if need be
+
+  byte bb = timerPrescaler & 7; 
+  if (timerPrescaler > 7) bb |= (1<<5); //Set the special 5th bit if necessary
+
+  //This order of commands is important and cannot be combined
+  MCUSR &= ~(1<<WDRF); //Clear the watch dog reset
+  WDTCR |= (1<<WDCE) | (1<<WDE); //Set WD_change enable, set WD enable
+  WDTCR = bb; //Set new watchdog timeout value
+  WDTCR |= _BV(WDIE); //Set the interrupt enable, this will keep unit from resetting after each int
+}
+
+void ledBlink() 
+{
+    // Blinks LED when the magnet on the tipping bucket rain gauge crosses the reed switch
+    // Useful to make sure everything is working; once everything works adjust code in loop function so that this function is not called
+  digitalWrite(ledPin, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(50);                       // wait for a second
+  digitalWrite(ledPin, LOW);    // turn the LED off by making the voltage LOW
+}
+
