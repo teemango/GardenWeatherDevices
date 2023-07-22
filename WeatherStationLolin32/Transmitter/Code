@@ -51,15 +51,11 @@ DallasTemperature sensors(&oneWire);
 float soilTemp;
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
-//String apiKey = "MZ3R2V7X3VHCJKAH";     //  Enter your Write API key from ThingSpeak
-//const char * myWriteAPIKey = "MZ3R2V7X3VHCJKAH";
+//String apiKey = "XXXXX";     //  Enter your Write API key from ThingSpeak
+//const char * myWriteAPIKey = "XXXXXX";
 
-//const char *ssid =  "Hera";     // replace with your wifi ssid and wpa2 key
-//const char *pass =  "MangoMadness@239";
-//const char* server = "api.thingspeak.com";
-
-//const char *ssid =  "ECHO - Staff";     // replace with your wifi ssid and wpa2 key
-//const char *pass =  "Durrance17391RD";
+//const char *ssid =  "XXXX";     // replace with your wifi ssid and wpa2 key
+//const char *pass =  "XXXXX";
 //const char* server = "api.thingspeak.com";
 void setup() {
   // Start serial communication for debugging purposes
@@ -173,7 +169,7 @@ void logReadings() {
   //temperature = sensors.getTempFByIndex(0); // Temperature in Fahrenheit
   
  // Transmit data to a receiving microcontroller for online viewing
-  const int Key = 6874;  //insert a unique combination of numbers to serve as a key that,in addition
+  const int Key = XXXX;  //insert a unique combination of numbers (4 numbers works) to serve as a key that, in addition
                          //to the sync word, I have found is needed to prevent the receiver from 
                          //processing data from other signals in the area broadcasting on the same 
                          //frequency as this transmitting unit (node); the receiver, then, is programmed
