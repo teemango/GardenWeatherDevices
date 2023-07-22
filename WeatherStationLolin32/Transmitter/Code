@@ -1,5 +1,4 @@
 #include "configAIhome.h"
-#include "FS.h"
 #include <SPI.h>
 #include <Wire.h>
 #include <OneWire.h>
