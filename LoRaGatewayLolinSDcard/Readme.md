@@ -1,0 +1,1 @@
+This device receives sensor data from a LoRa transmitter, using a LoRa RFM95 transceiver for both transmitting and receiving data, and logs the data on a Micro SD card with a time stamp. The time stamp for each reading is colleced via a DS3231 RTC clock.
