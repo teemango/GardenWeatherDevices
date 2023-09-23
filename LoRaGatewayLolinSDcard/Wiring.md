@@ -7,11 +7,29 @@ Note that the SS pin on the Lolin 32 is GPIO 5. Here, though, we use pin 32. Pin
 
 |LoRa RFM95 | Lolin 32 GPIO Pin|
 |-----------|---------|
-|GND	      | GNd     |
+|GND	      | GND     |
 |3V3	      | 3V3     |  
-|NSS	      | 32      |
+|NSS (SS)   | 32      |
 |SCK	      | 18      |
 |MOSI	      | 23      |
 |MISO	      | 19      |
 |Dio0	      | 33      |
 |RST	      | 25      |
+
+
+|Micro SD Module | Lolin 32 GPIO Pin|
+|-----------|---------|
+|GND	      | GND     |
+|3V3	      | 3V3     |  
+|SS (CS)	  | 5      |
+|SCK	      | 18      |
+|MOSI	(DI)  | 23      |
+|MISO	(DO)  | 19      |
+
+|DS3231 RTC | Lolin 32 GPIO Pin|
+|-----------|---------|
+|GND	      | GND     |
+|3V3	      | 3V3     |  
+|SDA    	  | 21      |
+|SCL	      | 22      |
+
