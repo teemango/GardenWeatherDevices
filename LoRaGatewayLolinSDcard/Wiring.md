@@ -22,7 +22,7 @@ Note that the SS pin on the Lolin 32 is GPIO 5. Here, though, we use pin 32. Pin
 |GND	      | GND     |
 |3V3	      | 3V3     |  
 |SS (CS)	  | 5      |
-|SCK	      | 18      |
+|SCK (CLK)  | 18      |
 |MOSI	(DI)  | 23      |
 |MISO	(DO)  | 19      |
 
