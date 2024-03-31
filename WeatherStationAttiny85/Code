@@ -1,1 +1,207 @@
+//This code not yet cleaned up. There are libraries and code that worked with another weather station that incorporated more sensors. Leaving it here gives insight into how you would go about adding more sensors.
+//Push button code by G6EJD - David https://www.youtube.com/watch?v=dZ1ohpCmkdA
 
+#include "configAIhome.h"
+//#include <driver/rtc_io.h>
+//#include "FS.h"
+#include <SPI.h>
+#include <Wire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Adafruit_Sensor.h>
+#include "Adafruit_SHT31.h"
+#include <LoRa.h>
+
+// Define deep sleep options
+uint64_t uS_TO_S_FACTOR = 1000000;  // Conversion factor for micro seconds to seconds
+ //Sleep for 10 minutes = 600 seconds
+uint64_t TIME_TO_SLEEP = 60;
+
+// Save reading number on RTC memory
+//RTC_DATA_ATTR int readingID = 0;
+
+//Define LoRa transceiver pins
+#define ss 26
+#define dio0 4
+
+//define lux sensor
+float lux = 0;
+#define Addr 0X4A //address for the light sensor
+
+String dataMessage;
+
+//RTC clock settings
+//#define DS3231_I2C_ADDRESS 0x68
+//byte zero = 0x00; //workaround for issue #527
+  
+// Data wire is connected to ESP32 GPIO 32
+//#define ONE_WIRE_BUS 11
+// Setup a oneWire instance to communicate with a OneWire device
+//OneWire oneWire(ONE_WIRE_BUS);
+// Pass our oneWire reference to Dallas Temperature sensor 
+//DallasTemperature sensors(&oneWire);
+
+//Initialization of soil moisture sensor
+  //const int airValue = 2800;   //you need to replace this value with Value_1
+  //const int waterValue = 1350;  //you need to replace this value with Value_2
+  //const int soilPin = 3;
+  //int moistureValue = 0;
+  //int moisturePercent=0;
+  //const int ledPin = 25;
+  
+// Temperature Sensor variables
+#define FanPin 12
+//float soilTemp;
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
+
+//String apiKey = "MZ3R2V7X3VHCJKAH";     //  Enter your Write API key from ThingSpeak
+//const char * myWriteAPIKey = "MZ3R2V7X3VHCJKAH";
+
+//const char *ssid =  "XXXXX";     // replace XXXXX with your wifi ssid and wpa2 key; retain quotes
+//const char *pass =  "XXXXX";
+//const char* server = "api.thingspeak.com";
+
+void setup() {
+  // Start serial communication for debugging purposes
+  Serial.begin(115200);
+  pinMode(FanPin, OUTPUT);  
+  //Wire.begin(); 
+  sht31.begin(0x44);
+  //Serial.begin(115200);
+
+  //pinMode(ledPin, OUTPUT);
+
+  // ---- Setup LoRa transceiver -------------------
+    LoRa.setPins(ss, dio0);
+    
+    //replace the LoRa.begin(---E-) argument with your location's frequency 
+    //433E6 for Asia
+    //866E6 for Europe
+    //915E6 for North America
+    while (!LoRa.begin(915E6)) {
+      Serial.println(".");
+      delay(200);
+    }
+    // The sync word (0xF3) here (the transmitter/node) and in code for the reciver/gateway 
+    // should match. The sync word ranges from 0-0xFF. Its purpose is to prevent receiving data from 
+    // other LoRa transceivers.
+    LoRa.setSyncWord(0xF3);
+    Serial.println("LoRa Initializing OK!");
+    delay (250); 
+
+ logReadings();
+  
+  //If you were to use ext1, you would use it like
+  //esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK,ESP_EXT1_WAKEUP_ANY_HIGH);
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  
+   // Start deep sleep
+  Serial.println("DONE! Going to sleep now.");
+  esp_deep_sleep_start(); 
+   
+}
+
+
+void loop() {
+  // The ESP32 will be in deep sleep
+  // it never reaches the loop()
+  // Start the DallasTemperature library
+  
+  //esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,1); //1 = High, 0 = Low
+  
+  }
+  
+
+
+
+
+void logReadings() {
+   // Reset the register pointer
+  //sensors.begin();
+  //Wire.begin();
+ // float moistureValue = analogRead(soilPin); //global variable to store exponential smoothed soil moisture reading in millivots
+  //Serial.print("Soil moisture: ");
+  //Serial.println(moistureValue);
+  //moisturePercent = map(moistureValue, airValue, waterValue, 0, 100);
+  digitalWrite(FanPin, HIGH);
+  delay(5000);
+  float airTemp = sht31.readTemperature(); 
+  float airHum =  sht31.readHumidity();
+  digitalWrite(FanPin, LOW);
+  //float lux = light();
+  //float rain =  Tips*TipMl;
+  
+  //sensors.requestTemperatures(); 
+  //soilTemp = sensors.getTempCByIndex(0); // Temperature in Celsius
+  //temperature = sensors.getTempFByIndex(0); // Temperature in Fahrenheit
+  
+ // Transmit data to a receiving microcontroller for online viewing
+  const int Key = 3536;  //insert a unique combination of numbers to serve as a key that,in addition
+                         //to the sync word, I have found is needed to prevent the receiver from 
+                         //processing data from other signals in the area broadcasting on the same 
+                         //frequency as this transmitting unit (node); the receiver, then, is programmed
+                         //to only publish data packets containing this number key. 
+   
+  LoRa.beginPacket();
+  LoRa.print (Key);
+  LoRa.print (":");
+  LoRa.print (airTemp);
+  LoRa.print (":");
+  //LoRa.print (soilTemp);
+  //LoRa.print (":");
+  LoRa.print (airHum);
+  //LoRa.print (":");
+  //LoRa.print (moistureValue);
+  //LoRa.print (":");
+  //LoRa.print (lux);
+ // LoRa.print (":");
+  //LoRa.print (rain);
+  LoRa.endPacket(); 
+  delay(250);
+}
+
+unsigned int light()
+{   unsigned int data1[2];
+    Wire.beginTransmission(Addr);
+    Wire.write(0x03);
+    Wire.endTransmission();
+    Wire.requestFrom(Addr, 2);// Request 2 bytes of data
+
+  // Read 2 bytes of data luminance msb, luminance lsb
+  if (Wire.available() == 2)
+  {
+    data1[0] = Wire.read();
+    data1[1] = Wire.read();
+  }
+ 
+  // Convert the data to lux
+  int exponent1 = (data1[0] & 0xF0) >> 4;
+  int mantissa1 = ((data1[0] & 0x0F) << 4) | (data1[1] & 0x0F);
+  float lux = pow(2, exponent1) * mantissa1 * 0.045;
+  return lux;
+}
+
+void ledBlink(int ledPin, int flashes, int evenOn, int evenOff, int oddOn, int oddOff)
+{
+    // Utility function for blinking an LED.
+    // It intentionally blocks with delay() to buy time for processes.
+    bool even = false;
+    for(int i=0; i<flashes; i++)
+    {
+        digitalWrite(ledPin, HIGH);
+        
+        if (even == false)
+            delay(evenOn);
+        else
+            delay(oddOn);
+            
+        digitalWrite(ledPin, LOW);
+        
+        if (even == false)
+            delay(evenOff);
+        else
+            delay(oddOff);
+            
+        even = !even;
+    }
+}
