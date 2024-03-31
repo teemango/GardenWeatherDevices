@@ -18,7 +18,7 @@
 
 
 ## Wiring connections for connecting a transceiver (LoRa RFM95W), temperature/humidity sensor (SHT31), and mini fan (5v but it still spins with 3.3 v--just slower) to a Firebeetle ESP32-E microcontroller
-Firebeetle pins like GND, 3V3, SCK, MOSI, and MISO are marked on the Firebeetle itself and do not have to be designated in the sketch/code for this project. Input/Output pins like D3 and D13 are also marked on the Firebeetle board and are mentioned below in parentheses in case the added info is helpful for wiring; to designate these pins in the sketch, the corresponding numbers (26 for D3 and 12 for D13) are used that appear in the pinout on DFROBOT web page: https://www.dfrobot.com/product-2195.html. 
+Firebeetle pins like GND, 3V3, SCK, MOSI, and MISO are marked on the Firebeetle itself and do not have to be designated in the sketch/code for this project. Input/Output pins like D3 and D13 are also marked on the Firebeetle board and are mentioned below in parentheses in case the added info is helpful for wiring; to designate these pins (D3, D12, D13) in the sketch, the corresponding numbers (26 for D3; 4 for D12; and 12 for D13) are used that appear in the pinout on DFROBOT web page: https://www.dfrobot.com/product-2195.html. 
 
 |LoRa RFM95| Firebeetle Pin# |
 |----------|:---:            |
@@ -28,6 +28,7 @@ Firebeetle pins like GND, 3V3, SCK, MOSI, and MISO are marked on the Firebeetle 
 |SCK       |SCK              |
 |MOSI      |MOSI             |
 |MISO      |MISO             |
+|DI0       |4 (D12)          |
 
 |SHT31    | Firebeetle Pin# |
 |---------|:---:         |
