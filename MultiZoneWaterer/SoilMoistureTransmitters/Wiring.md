@@ -13,14 +13,16 @@ Solder a 1N4007 diode between the the two terminals on the solenoid. The diode w
 
 See this instructible for photos and more details on how to connect the diode to the solenoid, as well as other connections: https://www.instructables.com/Controling-a-solenoid-valve-with-an-Arduino/
 
-## Mosfet, solenoid valve, and battery
-I used an [IRLB8721](https://www.digikey.com/en/products/detail/infineon-technologies/IRLB8721PBF/2127670) logic-level (meaning it can be turned off/on with 3.3v or 5v microcontrollers) mosfet, a small 5-amp hour [12-volt sealed lead acid battery](https://www.amazon.com/EXP1250-Terminals-Chamberlain-LiftMaster-Replacement/dp/B0010Z4MDK/ref=asc_df_B0010Z4MDK/?tag=hyprod-20&linkCode=df0&hvadid=693600725713&hvpos=&hvnetw=g&hvrand=4439266087684301916&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=9190372&hvtargid=pla-448086693597&mcid=cc6af3a0f4a43aa0952472b662fdd46e&th=1), and a 12-volt normally closed [solenoid valve](https://www.adafruit.com/product/997?gad_source=1&gclid=EAIaIQobChMIm7Cb0LPSiQMV1rdaBR225jZJEAQYBCABEgLzSvD_BwE) commonly used in washing machines and dishwashers.
+## Mosfet, battery, and Attiny85
+I used an [IRLB8721](https://www.digikey.com/en/products/detail/infineon-technologies/IRLB8721PBF/2127670) logic-level (meaning it can be turned off/on with 3.3v or 5v microcontrollers) mosfet and a 18650 3.7 volt lithium ion battery. When fully charged, the battery will be close to 4.2 v. Ideally, one should provide 3.3 v to the Pro Mini, which is possible via a voltage regulator. I omitted the voltage regulator, however, in an effort to conserve battery power and in light of the fact that I have not had any problems doing so.
 
-1. Connect the gate pin of the mosfet to pin D5 of the Arduino Nano. To make sure the solenoid stays off when it is supposed to, you can connect one leg (wire) of a 10K (K = Kiloohom) resistor to the Gate pin of the mosfet and the other leg (wire) of the 10K resistor to ground (GND of the Arduino Nano)
-2. Connect the Drain pin of the mosfet to the negative terminal of the solenoid.
-3. Connect the Source pin of the mosfet to ground (GND of the Arduino Nano).
-4. Connect the negative (black; ground) terminal of the battery to the ground (GND) pin of the Arduino Nano.
-5. Connect the positive (red; power) terminal of the battery to the positive side of the solenoid.
+In making the connections below it is helpful to understand how pins are designated on the Attiny85 microcontroller. An Attiny85 has 8 pins as indicated [here](https://solderingmind.com/attiny85-microcontroller-working-pin-out-and-programming).
+
+1. Connect the Gate pin of the mosfet to pin PB3 of the Arduino Pro Mini. To make sure the Pro Mini stays off when it is supposed to, you can connect one leg (wire) of a 100 ohm resistor to the Gate pin of the mosfet and the other leg (wire) of the 100 ohm resistor to ground (PB5) of the Attiny85. 
+2. Connect the Drain pin of the mosfet to a ground (GND) pin of the Arduino Pro Mini.
+3. Connect the Source pin of the mosfet to ground (PB5) of the Attiny85.
+4. Connect the negative (black; ground) terminal of the battery to the ground (PB5) pin of the Attiny85.
+5. Connect the positive (red; power) terminal of the battery to the VCC pin of the Attiny85.
 
 See the photo below to identify the Gate, Drain, and Source pins on the mosfet. Note that the photo identifies the pin with the black portion (with writing) of the mosfet facing you.
 
