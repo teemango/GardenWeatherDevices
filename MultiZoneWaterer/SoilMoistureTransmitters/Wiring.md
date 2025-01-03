@@ -18,30 +18,28 @@ I used an [IRLB8721](https://www.digikey.com/en/products/detail/infineon-technol
 
 In making the connections below it is helpful to understand how pins are designated on the Attiny85 microcontroller. An Attiny85 has 8 pins as indicated [here](https://solderingmind.com/attiny85-microcontroller-working-pin-out-and-programming).
 
-1. Connect the Gate pin of the mosfet to pin PB3 of the Arduino Pro Mini. To make sure the Pro Mini stays off when it is supposed to, you can connect one leg (wire) of a 100 ohm resistor to the Gate pin of the mosfet and the other leg (wire) of the 100 ohm resistor to ground (PB5) of the Attiny85. 
+1. Connect the Gate pin of the mosfet to pin PB3 of the Attiny85. To make sure the Pro Mini stays off when it is supposed to, you can connect one leg (wire) of a 100 ohm resistor to the Gate pin of the mosfet and the other leg (wire) of the 100 ohm resistor to ground (PB5) of the Attiny85. 
 2. Connect the Drain pin of the mosfet to a ground (GND) pin of the Arduino Pro Mini.
 3. Connect the Source pin of the mosfet to ground (PB5) of the Attiny85.
 4. Connect the negative (black; ground) terminal of the battery to the ground (PB5) pin of the Attiny85.
-5. Connect the positive (red; power) terminal of the battery to the VCC pin of the Attiny85.
+5. Connect the positive (red; power) terminal of the battery to the VCC pin of the Attiny85 and to the 3V3 pin of the Arduino Pro Mini. This works out fine with a 3.7v 18650 battery (or two of these batteries connected in parrallel--so that voltage stays the same) since it will not overpower either device.
 
 See the photo below to identify the Gate, Drain, and Source pins on the mosfet. Note that the photo identifies the pin with the black portion (with writing) of the mosfet facing you.
 
 ![MosfetLabeled](https://github.com/user-attachments/assets/84e01369-fc0b-42bd-acd3-579d18a86e7e)
 
-## Battery and Arduino Nano
-####
-1. Connect the negative terminal to ground (GND) of the Arduino Nano, as eplained previously.
-2. Connect the positive terminal fo the battery to the VIN pin of the Arduino Nano. The VIN pin can receive, ideally, up to 12 volts, and I am finding that works okay even if a full battery is supplying closer to 13.5 volots. There is a voltage regulater built in to the Arduino that steps the incoming 12 volts down to 5 volts. 
+## Arduino Pro Mini and LoRa RFM95 transceiver
 
-## OLED screen---the code was based on a 128 X 64 pixel OLED 
-
-
-| OLED    |      |   Arduino   |  
-| :---:   |:---: |   :---:  |          
-| GND     | ---> |  GND     |    
-| VCC     | ---> |  5v      |        
-| SDA     | ---> |  A4     |            
-| SCL     | ---> |  A5     |          
+#### LoRa transceiver
+| LoRa           |       | Arduino Pro Mini  |
+| :---:          | :---: | :---:             |
+| GND            |  ---> | GND               |
+| VCC/VIN        |  ---> | 3v3               |
+| D0/GO          |  ---> | 3                 |
+| SCK            |  ---> | 13                |
+| MOSI           |  ---> | 11                |
+| MISO           |  ---> | 12                |
+| CS/NSS/ss      |  ---> | 4                 |         
 
 Make sure the VCC pin of the OLED is connected to 5 volts and not 12 volts.
 
