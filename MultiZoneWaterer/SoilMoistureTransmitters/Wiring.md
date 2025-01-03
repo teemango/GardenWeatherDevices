@@ -2,7 +2,7 @@
 #### Connections between components and the Arduino Pro Mini (3.3v) microcontroller
 
 ## Soil moisture sensor
-| Soil sensor    |      |  Arduino Nano   |
+| Soil sensor    |      |  Arduino Pro Mini   |
 | :---:          |:---: |  :---:          |
 | GND            | ---> |  GND            |
 | VCC            | ---> |  9             |
