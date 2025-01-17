@@ -13,7 +13,7 @@ I used an [IRLB8721](https://www.digikey.com/en/products/detail/infineon-technol
 
 In making the connections below it is helpful to understand how pins are designated on the Attiny85 microcontroller. An Attiny85 has 8 pins as indicated [here](https://solderingmind.com/attiny85-microcontroller-working-pin-out-and-programming).
 
-1. Connect the Gate pin of the mosfet to pin PB3 of the Attiny85. To make sure the Pro Mini stays off when it is supposed to, you can connect one leg (wire) of a 100 ohm resistor to the Gate pin of the mosfet and the other leg (wire) of the 100 ohm resistor to ground (PB5) of the Attiny85. 
+1. Connect the Gate pin of the mosfet to pin PB3 of the Attiny85. To make sure the Pro Mini stays off when it is supposed to, you can connect one leg (wire) of a 100 ohm resistor to the Gate pin of the mosfet and the other leg (wire) of the 100 ohm resistor to ground (GND) of the Attiny85. 
 2. Connect the Drain pin of the mosfet to a ground (GND) pin of the Arduino Pro Mini.
 3. Connect the Source pin of the mosfet to ground (PB5) of the Attiny85.
 4. Connect the negative (black; ground) terminal of the battery to the ground (PB5) pin of the Attiny85.
