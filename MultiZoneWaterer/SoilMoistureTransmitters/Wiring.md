@@ -15,8 +15,8 @@ In making the connections below it is helpful to understand how pins are designa
 
 1. Connect the Gate pin of the mosfet to pin PB3 of the Attiny85. To make sure the Pro Mini stays off when it is supposed to, you can connect one leg (wire) of a 100 ohm resistor to the Gate pin of the mosfet and the other leg (wire) of the 100 ohm resistor to ground (GND) of the Attiny85. 
 2. Connect the Drain pin of the mosfet to a ground (GND) pin of the Arduino Pro Mini.
-3. Connect the Source pin of the mosfet to ground (PB5) of the Attiny85.
-4. Connect the negative (black; ground) terminal of the battery to the ground (PB5) pin of the Attiny85.
+3. Connect the Source pin of the mosfet to ground (GND) of the Attiny85.
+4. Connect the negative (black; ground) terminal of the battery to the ground pin of the Attiny85.
 5. Connect the positive (red; power) terminal of the battery to the VCC pin of the Attiny85.  
 
 See the photo below to identify the Gate, Drain, and Source pins on the mosfet. Note that the photo identifies the pin with the black portion (with writing) of the mosfet facing you.
