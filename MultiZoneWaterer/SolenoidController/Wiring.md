@@ -27,6 +27,8 @@ Below is a photo of the IRLB8721 mosfet, illustrating which pins correspond to g
 
 Reistance values for the limiting resistor and path to ground may vary depending on your source of info. The 100 ohm (limiting resistor) and 1K ohm (for path to ground) resistors have worked well for me. Keep in mind that the limiting resistor needs to allow enough voltage to reach the gate pin of the mosfet for it to turn on. For the path to ground, too much resistance will not allow for a path to ground (which could cause the solenoid to stay on when it is supposed to shut off) while not enough resistance (such as that with a straight wire connection to ground with no resistor) will result in the gate never receiving enough voltage for the solenoid to turn on. 
 
+If you decide to connect the mosfet gate pins to different pins on the Wemos Lolin 32, make sure that the GPIO pin you use can work as an output pin. I had initially connected the mosfet gate for the second selenoid to GPIO pin 34; the solenoid would not turn on at all and in looking at the Lolin32 pinout online I realized that pin 34 is "Input only"; changing the pin and corresponding Arduino IDE code to GPIO pin 32 solved the problem.
+
 ### Solenoid flyback diodes
 To protect the solenoid from power spikes, connect a diode acrosss the terminals of the solenoid. This can be done by connecting wires to the solenoid that have been crimped into female quick disconnect terminals; crimp terminals often have a hole that makes a convenient place to insert a leg of a diode for soldering. It does not matter which way you orient the diode across the solenoid termminals, but once you solder a diode across the terminals of a solenoid, whichever solenoid terminal is connected to the side of the diode with the white stripe becomes "positive" and the opposite side "ground". 
 
@@ -41,3 +43,17 @@ The 12 v DC solenoid will open with a DC power source (adaptor plug or battery) 
 For a permanent build, solder components onto a solderable breadboard, with screw terminals as a way to connect wire cable from solenoids and a solenoid power source to the board. The diagram below illustrates this concept. In your final build, place components closer together on the board to make room for a LoRa module that will receive soil moisture readings from the soil moisture transmitter in each of your two watering zones. The diagram below was created with Cirkit Designer, which by default makes ground wires blue; in my actual build, I used black wires for ground (negative) and red wires for power (positive) connections
                                                                             
 ![SolenoidControllerMosfetConnections](https://github.com/user-attachments/assets/2b1b2eca-ec02-43f1-bff3-381cfd3b0e89)
+
+
+## LoRa RFM95 to Wemos Lolin 32 connections
+The LoRa module will receive soil moisture readings from the soil moisture transmitter in each watering zone. The WiFi capability of the Wemos Lolin32 will publish the readings online.
+
+|LoRa RFM95 for Lolin (Air/Hum)| Lolin Pin# |
+|----------|:---:          |
+|GND       |GND        |
+|3V3       |3V3        |
+|NSS       |5        |
+|SCK       |18        |
+|MOSI      |23       |
+|MISO      |19       |
+|Dio0      |2       |
