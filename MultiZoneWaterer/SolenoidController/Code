@@ -1,1 +1,323 @@
+/*********
+Code gathered by T. Motis from various sources  
+Modified from the examples of the Arduino LoRa library
+  More resources: https://randomnerdtutorials.com
+*********/
+#include "configAI.h"
+#include <WiFi.h>
+//#include <WiFi.h>
+#include <LoRa.h>
+#include <Adafruit_Sensor.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <ThingSpeak.h>
+
+
+String apiKey = "OHR3MRYMWABRZOCR";  //  Enter your Write API key from ThingSpeak
+const char *myWriteAPIKey = "OHR3MRYMWABRZOCR";
+
+const char *ssid = "XXXX";  // replace with your wifi ssid and wpa2 key
+const char *pass = "XXXXXXXXX"; //replace with you wifi password
+const char *server = "api.thingspeak.com";
+unsigned long myChannelNumber = XXXXXX;  //replace with your Thingspeak channel number
+
+//define the pins used by the transceiver module
+#define ss 5
+#define dio0 2
+
+//define the solenoid pin for each watering zone
+#define solenoidPinZone1 32
+#define solenoidPinZone2 33
+
+String myStatus = "";
+
+int LoRaData;
+
+WiFiClient client;
+
+// set up the 'temperature' and 'humidity' feeds
+//AdafruitIO_Feed *soiltemp = io.feed("Soil temperature");
+AdafruitIO_Feed *soilmoistmvZone1 = io.feed("Soil moisture value Zone 1");
+AdafruitIO_Feed *soilmoistpctZone1 = io.feed("Soil moisture percent Zone 1");
+AdafruitIO_Feed *soilmoistmvZone2 = io.feed("Soil moisture value Zone 2");
+AdafruitIO_Feed *soilmoistpctZone2 = io.feed("Soil moisture percent Zone2");
+
+void setup() {
+
+  pinMode(solenoidPinZone1, OUTPUT);
+  digitalWrite(solenoidPinZone1, LOW);
+
+  pinMode(solenoidPinZone2, OUTPUT);
+  digitalWrite(solenoidPinZone2, LOW);
+
+
+  // start the serial connection
+  Serial.begin(115200);
+
+  // wait for serial monitor to open
+  while (!Serial)
+    ;
+
+  Serial.print("Connecting to Adafruit IO");
+
+  // connect to io.adafruit.com
+  io.connect();
+
+  // wait for a connection
+  while (io.status() < AIO_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+
+  // we are connected
+  Serial.println();
+  Serial.println(io.statusText());
+
+  //setup LoRa transceiver module
+  LoRa.setPins(ss, dio0);
+  //LoRa.setPins(ss);
+
+  //replace the LoRa.begin(---E-) argument with your location's frequency
+  //433E6 for Asia
+  //866E6 for Europe
+  //915E6 for North America
+  while (!LoRa.begin(915E6)) {
+    Serial.println(".");
+    delay(500);
+  }
+  // Change sync word (0xF3) to match the receiver
+  // The sync word assures you don't get LoRa messages from other LoRa transceivers
+  // ranges from 0-0xFF
+  LoRa.setSyncWord(0xF3);
+  Serial.println("LoRa Initializing OK!");
+
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected");
+  ThingSpeak.begin(client);
+}
+
+
+void loop() {
+  // try to parse packet
+  int packetSize = LoRa.parsePacket();
+  if (packetSize) {
+    Serial.print("Received packet '");
+    // read packet
+    while (LoRa.available()) {
+      String LoRaData = LoRa.readString();
+      Serial.print(LoRaData);
+
+      // print RSSI of packet
+      Serial.print("' with RSSI ");
+      Serial.println(LoRa.packetRssi());
+
+      // Connect or reconnect to WiFi
+      if (WiFi.status() != WL_CONNECTED) {
+        Serial.print("Attempting to connect to SSID: ");
+        Serial.println("ECHO - Staff");
+        while (WiFi.status() != WL_CONNECTED) {
+          delay(500);
+          WiFi.begin(WIFI_SSID, WIFI_PASS);  // Connect to WPA/WPA2 network. Change this line if using open or WEP network
+          Serial.print(".");
+          delay(5000);
+        }
+        Serial.println("\nConnected.");
+      }
+
+      // set the fields with the values
+
+      Serial.println("LoRaData String:");
+      Serial.println(LoRaData);
+      const int KeyZone1 = 3074;
+      const int KeyZone2 = 3095;
+
+      const int wetSoilPctZone1 = 85;
+      const int drySoilPctZone1 = 65;
+      const int wetSoilPctZone2 = 85;
+      const int drySoilPctZone2 = 65;
+      //int intwetSoilPct = wetSoilPct.toInt();
+      // int intdrytSoilPct = wetSoilPct.toInt();
+
+
+      String strKeyZone1 = getValue(LoRaData, ':', 0);
+      String strSoilMoistValZone1 = getValue(LoRaData, ':', 1);
+      String strSoilMoistPctZone1 = getValue(LoRaData, ':', 2);
+
+      String strKeyZone2 = getValue(LoRaData, ':', 0);
+      String strSoilMoistValZone2 = getValue(LoRaData, ':', 1);
+      String strSoilMoistPctZone2 = getValue(LoRaData, ':', 2);
+
+      int intKeyZone1 = strKeyZone1.toInt();
+      int intKeyZone2 = strKeyZone2.toInt();
+      int intSoilMoistValZone1 = strSoilMoistValZone1.toInt();
+      int intSoilMoistPctZone1 = strSoilMoistPctZone1.toInt();
+      int intSoilMoistValZone2 = strSoilMoistValZone2.toInt();
+      int intSoilMoistPctZone2 = strSoilMoistPctZone2.toInt();
+      //int intTemperature = strTemperature.toInt();
+      //int intLum4 = strLum4.toInt();
+
+      if (intKeyZone1 == KeyZone1) {
+        //Serial.println("Extracted String");
+        //Serial.println(strKey);
+        //Serial.println(strSoilTemp);
+        //Serial.println(strSoilMoistureValue);
+        //Serial.println(strSoilMoisturePct);
+        //Serial.println(strLum4);
+
+
+        io.run();
+
+        //Serial.print("Soil moisture value: ");
+        //Serial.print(strSoilMoistureValue);
+        //Serial.println("mV");
+
+        //Serial.print("Soil moisture percent: ");
+        //Serial.print(strSoilMoisturePct);
+        //Serial.println("%");
+        //save Temperature to Adafruit IO
+        //soiltemp->save(strSoilTemp);
+
+        // save soil moisture value to Adafruit IO
+        soilmoistmvZone1->save(strSoilMoistValZone1);
+
+        // save soil moisture percent to Adafruit IO
+        soilmoistpctZone1->save(strSoilMoistPctZone1);
+
+        // wait 5 seconds (5000 milliseconds == 5 seconds)
+        delay(5000);
+
+        //ThingSpeak.setField(1, strSoilTemp);
+        ThingSpeak.setField(1, strSoilMoistValZone1);
+        ThingSpeak.setField(2, strSoilMoistPctZone1);
+        //ThingSpeak.setField(4, strHum);
+
+
+        //write to the ThingSpeak channel
+        int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+        if (x == 200) {
+          Serial.println("Channel update successful.");
+        } else {
+          Serial.println("Problem updating channel. HTTP error code " + String(x));
+        }
+
+        // thingspeak needs minimum 15 sec delay between updates, i've set it to 30 seconds
+        delay(20000);
+
+        // Determine status of our soil
+        if (intSoilMoistPctZone1 > wetSoilPctZone1) {
+          Serial.println("Status: Soil is too wet");
+          delay(20);
+        } else if (intSoilMoistPctZone1 <= wetSoilPctZone1 && intSoilMoistPctZone1 > drySoilPctZone1) {
+          Serial.println("Status: Soil moisture is perfect");
+          delay(20);
+        } else {
+          Serial.println("Status: Soil is too dry - time to water!");
+          delay(20);
+          WaterZone1();
+        }
+      }
+
+      if (intKeyZone2 == KeyZone2) {
+        //Serial.println("Extracted String");
+        //Serial.println(strKey);
+        //Serial.println(strSoilTemp);
+        //Serial.println(strSoilMoistureValue);
+        //Serial.println(strSoilMoisturePct);
+        //Serial.println(strLum4);
+
+
+        io.run();
+
+        //Serial.print("Soil moisture value: ");
+        //Serial.print(strSoilMoistureValue);
+        //Serial.println("mV");
+
+        //Serial.print("Soil moisture percent: ");
+        //Serial.print(strSoilMoisturePct);
+        //Serial.println("%");
+        //save Temperature to Adafruit IO
+        //soiltemp->save(strSoilTemp);
+
+        // save soil moisture value to Adafruit IO
+        soilmoistmvZone2->save(strSoilMoistValZone2);
+
+        // save soil moisture percent to Adafruit IO
+        soilmoistpctZone2->save(strSoilMoistPctZone2);
+
+        // wait 5 seconds (5000 milliseconds == 5 seconds)
+        delay(5000);
+
+        //ThingSpeak.setField(1, strSoilTemp);
+        ThingSpeak.setField(3, strSoilMoistValZone2);
+        ThingSpeak.setField(4, strSoilMoistPctZone2);
+        //ThingSpeak.setField(4, strHum);
+
+
+        //write to the ThingSpeak channel
+        int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+        if (x == 200) {
+          Serial.println("Channel update successful.");
+        } else {
+          Serial.println("Problem updating channel. HTTP error code " + String(x));
+        }
+
+        // thingspeak needs minimum 15 sec delay between updates, i've set it to 30 seconds
+        delay(20000);
+
+        // Determine status of our soil
+        if (intSoilMoistPctZone2 > wetSoilPctZone2) {
+          Serial.println("Status: Soil is too wet");
+          delay(20);
+        } else if (intSoilMoistPctZone2 <= wetSoilPctZone2 && intSoilMoistPctZone2 > drySoilPctZone2) {
+          Serial.println("Status: Soil moisture is perfect");
+          delay(20);
+        } else {
+          Serial.println("Status: Soil is too dry - time to water!");
+          delay(20);
+          WaterZone2();
+        }
+
+      } else {
+      };
+    }
+  }
+}
+
+String getValue(String data, char separator, int index) {
+  int found = 0;
+  int strIndex[] = { 0, -1 };
+  int maxIndex = data.length() - 1;
+
+  for (int i = 0; i <= maxIndex && found <= index; i++) {
+    if (data.charAt(i) == separator || i == maxIndex) {
+      found++;
+      strIndex[0] = strIndex[1] + 1;
+      strIndex[1] = (i == maxIndex) ? i + 1 : i;
+    }
+  }
+  return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
+
+
+void WaterZone1() {
+  digitalWrite(solenoidPinZone1, HIGH);
+  Serial.println("Watering Zone 1");
+  delay(12000);
+  digitalWrite(solenoidPinZone1, LOW);
+  Serial.println("Done watering Zone 1");
+}
+
+void WaterZone2() {
+  digitalWrite(solenoidPinZone2, HIGH);
+  Serial.println("Watering Zone 2");
+  delay(15000);
+  digitalWrite(solenoidPinZone2, LOW);
+  Serial.println("Done watering Zone 2");
+}
 
