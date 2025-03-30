@@ -1,0 +1,76 @@
+/*
+  Code gathered by T. Motis from various sources
+
+*/
+
+#include <avr/sleep.h>
+#include "PinChangeInterrupt.h"
+#include <TinyWireM.h>
+
+#define gatePin PB3
+
+//Watchdog counter
+volatile int watchdog_counter;
+
+//This runs each time the watch dog wakes us up from sleep
+ISR(WDT_vect) {
+  watchdog_counter++;
+}
+
+// the setup function runs once when you press reset or power the board
+void setup() {
+  // initialize digital pin LED_BUILTIN as an output.
+  pinMode(gatePin, OUTPUT);
+
+  digitalWrite(gatePin, HIGH);
+  delay(15000);
+  digitalWrite(gatePin, LOW);
+
+  TinyWireM.begin();
+
+  //sleepNow();
+  watchdog_counter = 0;
+  setup_watchdog(9);  //Wake up after 4 seconds
+}
+
+// the loop function runs over and over again forever
+void loop() {
+  sleepNow();
+  if (watchdog_counter > 840)  //set the amount of sleep time
+  {
+    watchdog_counter = 0;
+    digitalWrite(gatePin, HIGH);  // turn the LED on (HIGH is the voltage level)
+    delay(15000);                 // time needed to collect the soil moisture reading and publish online
+    digitalWrite(gatePin, LOW);   // turn the LED off by making the voltage LOW
+  }                               // wait for a second
+}
+
+
+void sleepNow() {
+
+  // disable ADC
+  ADCSRA = 0;
+  set_sleep_mode(SLEEP_MODE_IDLE);  // sleep mode is set here
+
+  sleep_enable();  // enables the sleep bit in the mcucr register
+  // so sleep is possible. just a safety pin
+
+  sleep_mode();  // here the device is actually put to sleep!!
+  // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
+  sleep_disable();  // first thing after waking from sleep:
+  // disable sleep...
+}
+
+void setup_watchdog(int timerPrescaler) {
+
+  if (timerPrescaler > 9) timerPrescaler = 9;  //Correct incoming amount if need be
+
+  byte bb = timerPrescaler & 7;
+  if (timerPrescaler > 7) bb |= (1 << 5);  //Set the special 5th bit if necessary
+
+  //This order of commands is important and cannot be combined
+  MCUSR &= ~(1 << WDRF);              //Clear the watch dog reset
+  WDTCR |= (1 << WDCE) | (1 << WDE);  //Set WD_change enable, set WD enable
+  WDTCR = bb;                         //Set new watchdog timeout value
+  WDTCR |= _BV(WDIE);                 //Set the interrupt enable, this will keep unit from resetting after each int
+}
