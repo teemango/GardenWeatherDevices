@@ -1,0 +1,154 @@
+//Code gathered by T. Motis from various sources
+
+#include <Wire.h>
+#include <Arduino.h>
+#include <LoRa.h>
+#include <SPI.h>
+
+
+//Initialization of soil moisture sensor
+const int soilPin = A0;  //analog output pin of soil moisture sensor connected to pin A0
+const int soilPowerPin = 9;
+const int dryValue = 800;  //millivolts in dry soil (replace with value for your soil)
+const int wetValue = 325;  //millivolots in wet/saturated soil (replace with value for your soil)
+int moistPctZone1 = 0;     //initial value needs to be zero; do not change
+const int wetSoilPct = 85;
+const int drySoilPct = 50;
+
+
+//Solenoid pin and on time
+unsigned long previousMillis = 0UL;
+unsigned long interval = 5000UL;  //1000 UL per sec for each second of on time
+
+
+//LoRa transceiver
+#define ss 4
+#define dio0 3
+#define rst 2  //have found that the transceiver works without the rst pin connected to the microcontroller but including it here in case
+
+void setup() {
+  //Start serial monitor
+  Serial.begin(9600);
+  while (!Serial)
+    ;  // Wait for serial monitor to open
+
+
+  pinMode(soilPowerPin, OUTPUT);
+  digitalWrite(soilPowerPin, LOW);
+
+
+  LoRa.setPins(ss, dio0);
+
+  //replace the LoRa.begin(---E-) argument with your location's frequency
+  //433E6 for Asia
+  //866E6 for Europe
+  //915E6 for North America
+  while (!LoRa.begin(915E6)) {
+    Serial.println(".");
+    delay(500);
+  }
+  // Change sync word (0xF3) to match the receiver to avoid receiving messages from other LoRa transceivers
+  // ranges from 0-0xFF
+  LoRa.setSyncWord(0xF3);
+  Serial.println("LoRa Initializing OK!");
+  delay(20);
+
+  //screenSend();
+  delay(20);
+
+  //check the soil moisture and turn on the solenoid to irrigate if needed
+  moistureCheck();
+
+  //go to sleep!
+  Serial.println("Going to Sleep...");
+  delay(20);
+}
+
+void loop() {  // nothing happens here because the Attiny turns the Pro Mini off after transmitting data
+}
+
+unsigned int moistureCheck() {
+
+  //give sensor time to stabilize (200ms)
+  int sum;
+  int num_readings = 0;
+  int reading1 = 0;
+  int reading2 = 0;
+  int reading3 = 0;
+  int avgReadingZone1 = 0;
+  int totalValue = 0;
+  const int minAcceptableReading = 5;     //set what you think might be an anomoly for a low reading
+  const int maxAcceptableReading = 1020;  //set what you think might be an anoly for a high reading
+
+  digitalWrite(soilPowerPin, HIGH);
+  delay(3000);
+  reading1 = analogRead(soilPin);
+  if (reading1 > minAcceptableReading && reading1 <= maxAcceptableReading) {
+    Serial.print("reading 1: ");
+    Serial.println(reading1);
+    num_readings++;
+  } else if (reading1 < minAcceptableReading && reading1 >= maxAcceptableReading) {
+    return 0;
+  }
+
+
+  delay(500);
+  reading2 = analogRead(soilPin);
+  if (reading2 > minAcceptableReading && reading2 <= maxAcceptableReading) {
+    Serial.print("reading 2: ");
+    delay(20);
+    Serial.println(reading2);
+    num_readings++;
+  } else if (reading2 < minAcceptableReading && reading2 >= maxAcceptableReading) {
+    return 0;
+  }
+
+
+  delay(500);
+  reading3 = analogRead(soilPin);
+  if (reading3 > minAcceptableReading && reading3 <= maxAcceptableReading) {
+    Serial.print("reading 3: ");
+    delay(20);
+    Serial.println(reading3);
+    num_readings++;
+  } else if (reading3 < minAcceptableReading && reading3 >= maxAcceptableReading) {
+    return 0;
+  }
+
+  digitalWrite(soilPowerPin, LOW);
+  Serial.print("number of readings = ");
+  delay(20);
+  Serial.println(num_readings);
+
+  totalValue = reading1 + reading2 + reading3;
+  avgReadingZone1 = totalValue / num_readings;
+  num_readings = 0;
+  delay(1000);
+
+  Serial.print("Total value: ");
+  delay(20);
+  Serial.println(totalValue);
+  delay(20);
+
+  Serial.print("Soil moisture: ");
+  delay(20);
+  Serial.println(avgReadingZone1);
+  delay(20);
+  float moistPctZone1 = map(avgReadingZone1, dryValue, wetValue, 0, 100);  //converts millivolts to percent moisture
+  Serial.print("Soil moisture percent: ");
+  delay(20);
+  Serial.println(moistPctZone1);
+  delay(20);
+
+  const int Key = XXXX; //Replace with a four-digit code (other numbers of digits would probably work--one could experiment)
+
+  LoRa.beginPacket();
+  LoRa.print(Key);
+  LoRa.print(":");
+  LoRa.print(avgReadingZone1);
+  LoRa.print(":");
+  LoRa.print(moistPctZone1);
+  LoRa.endPacket();
+  delay(250);
+  Serial.println();
+}
