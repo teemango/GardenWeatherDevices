@@ -1,207 +1,164 @@
-//This code not yet cleaned up. There are libraries and code that worked with another weather station that incorporated more sensors. Leaving it here gives insight into how you would go about adding more sensors.
-//Push button code by G6EJD - David https://www.youtube.com/watch?v=dZ1ohpCmkdA
+/*
+Code assembled by Tim Motis, much of which is adapted from that by Quintans (2015):
 
-#include "configAIhome.h"
-//#include <driver/rtc_io.h>
-//#include "FS.h"
-#include <SPI.h>
-#include <Wire.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include <Adafruit_Sensor.h>
-#include "Adafruit_SHT31.h"
-#include <LoRa.h>
+  Quintans, DJ 2015. Sneesl: An Arduino-based data-logger for rain collectors. Microprocessor software. 
+  https://github.com/DesiQuintans/sneesl-rain-logger. doi:10.5281/zenodo.1204674 
 
-// Define deep sleep options
-uint64_t uS_TO_S_FACTOR = 1000000;  // Conversion factor for micro seconds to seconds
- //Sleep for 10 minutes = 600 seconds
-uint64_t TIME_TO_SLEEP = 60;
+Code related to debouncing of the reed swtich was sourced from: https://www.youtube.com/watch?v=KHrTqdmYoAk&t=872s 
 
-// Save reading number on RTC memory
-//RTC_DATA_ATTR int readingID = 0;
+*/
 
-//Define LoRa transceiver pins
-#define ss 26
-#define dio0 4
 
-//define lux sensor
-float lux = 0;
-#define Addr 0X4A //address for the light sensor
+// LIBRARIES
 
-String dataMessage;
+#include <TinyLoRa.h>
+#include <TinyWireM.h>
+//#include <avr/wdt.h>  /watchdog
+#include <avr/sleep.h>
+#include "PinChangeInterrupt.h"
+//#include <avr/interrupt.h>
 
-//RTC clock settings
-//#define DS3231_I2C_ADDRESS 0x68
-//byte zero = 0x00; //workaround for issue #527
-  
-// Data wire is connected to ESP32 GPIO 32
-//#define ONE_WIRE_BUS 11
-// Setup a oneWire instance to communicate with a OneWire device
-//OneWire oneWire(ONE_WIRE_BUS);
-// Pass our oneWire reference to Dallas Temperature sensor 
-//DallasTemperature sensors(&oneWire);
+// DEFINITIIONS OF PINS AND VARIABLES
 
-//Initialization of soil moisture sensor
-  //const int airValue = 2800;   //you need to replace this value with Value_1
-  //const int waterValue = 1350;  //you need to replace this value with Value_2
-  //const int soilPin = 3;
-  //int moistureValue = 0;
-  //int moisturePercent=0;
-  //const int ledPin = 25;
-  
-// Temperature Sensor variables
-#define FanPin 12
-//float soilTemp;
-Adafruit_SHT31 sht31 = Adafruit_SHT31();
+// Rain sensor 
+#define rainPin PB4
 
-//String apiKey = "MZ3R2V7X3VHCJKAH";     //  Enter your Write API key from ThingSpeak
-//const char * myWriteAPIKey = "MZ3R2V7X3VHCJKAH";
+volatile byte RainFlag = 0; //detect rain interrupt
+//#define RainHt 0.03
+float RainHt = 0.1;// rain height in cm per tip 
+int TipCount = 0;
+//unsigned int TipCount = 0; //tipping bucket tip count
+volatile unsigned long ContactBounceTimeRain = 0;
+//#define Tip 0.02806  //replace this number (cm of rain per tip) based on the area of your rain collector;
+                      // Cm of rain per tip = tipping bucket volume in cubic centimeters divided by the 
+                      // catchment area, in square cm, of your rain collector 
+//Watchdog counter
+volatile int watchdog_counter;
 
-//const char *ssid =  "XXXXX";     // replace XXXXX with your wifi ssid and wpa2 key; retain quotes
-//const char *pass =  "XXXXX";
-//const char* server = "api.thingspeak.com";
-
-void setup() {
-  // Start serial communication for debugging purposes
-  Serial.begin(115200);
-  pinMode(FanPin, OUTPUT);  
-  //Wire.begin(); 
-  sht31.begin(0x44);
-  //Serial.begin(115200);
-
-  //pinMode(ledPin, OUTPUT);
-
-  // ---- Setup LoRa transceiver -------------------
-    LoRa.setPins(ss, dio0);
-    
-    //replace the LoRa.begin(---E-) argument with your location's frequency 
-    //433E6 for Asia
-    //866E6 for Europe
-    //915E6 for North America
-    while (!LoRa.begin(915E6)) {
-      Serial.println(".");
-      delay(200);
-    }
-    // The sync word (0xF3) here (the transmitter/node) and in code for the reciver/gateway 
-    // should match. The sync word ranges from 0-0xFF. Its purpose is to prevent receiving data from 
-    // other LoRa transceivers.
-    LoRa.setSyncWord(0xF3);
-    Serial.println("LoRa Initializing OK!");
-    delay (250); 
-
- logReadings();
-  
-  //If you were to use ext1, you would use it like
-  //esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK,ESP_EXT1_WAKEUP_ANY_HIGH);
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-  
-   // Start deep sleep
-  Serial.println("DONE! Going to sleep now.");
-  esp_deep_sleep_start(); 
-   
+//This runs each time the watch dog wakes us up from sleep
+ISR(WDT_vect) {
+  watchdog_counter++;
 }
 
+// #### SETUP ####################################################
 
-void loop() {
-  // The ESP32 will be in deep sleep
-  // it never reaches the loop()
-  // Start the DallasTemperature library
-  
-  //esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,1); //1 = High, 0 = Low
-  
-  }
-  
+/*
+    Error codes (Flashing of the LED connected to the ledPin [pin 5 as designated earlier]):
+    Fast-fast    RTC couldn't be initialised.
+    Fast-slow    SD card couldn't be initialised.
+    2 fast 5 Slow All OK, starting to log data.
+*/
 
-
-
-
-void logReadings() {
-   // Reset the register pointer
-  //sensors.begin();
-  //Wire.begin();
- // float moistureValue = analogRead(soilPin); //global variable to store exponential smoothed soil moisture reading in millivots
-  //Serial.print("Soil moisture: ");
-  //Serial.println(moistureValue);
-  //moisturePercent = map(moistureValue, airValue, waterValue, 0, 100);
-  digitalWrite(FanPin, HIGH);
-  delay(5000);
-  float airTemp = sht31.readTemperature(); 
-  float airHum =  sht31.readHumidity();
-  digitalWrite(FanPin, LOW);
-  //float lux = light();
-  //float rain =  Tips*TipMl;
-  
-  //sensors.requestTemperatures(); 
-  //soilTemp = sensors.getTempCByIndex(0); // Temperature in Celsius
-  //temperature = sensors.getTempFByIndex(0); // Temperature in Fahrenheit
-  
- // Transmit data to a receiving microcontroller for online viewing
-  const int Key = 3536;  //insert a unique combination of numbers to serve as a key that,in addition
-                         //to the sync word, I have found is needed to prevent the receiver from 
-                         //processing data from other signals in the area broadcasting on the same 
-                         //frequency as this transmitting unit (node); the receiver, then, is programmed
-                         //to only publish data packets containing this number key. 
-   
-  LoRa.beginPacket();
-  LoRa.print (Key);
-  LoRa.print (":");
-  LoRa.print (airTemp);
-  LoRa.print (":");
-  //LoRa.print (soilTemp);
-  //LoRa.print (":");
-  LoRa.print (airHum);
-  //LoRa.print (":");
-  //LoRa.print (moistureValue);
-  //LoRa.print (":");
-  //LoRa.print (lux);
- // LoRa.print (":");
-  //LoRa.print (rain);
-  LoRa.endPacket(); 
-  delay(250);
-}
-
-unsigned int light()
-{   unsigned int data1[2];
-    Wire.beginTransmission(Addr);
-    Wire.write(0x03);
-    Wire.endTransmission();
-    Wire.requestFrom(Addr, 2);// Request 2 bytes of data
-
-  // Read 2 bytes of data luminance msb, luminance lsb
-  if (Wire.available() == 2)
-  {
-    data1[0] = Wire.read();
-    data1[1] = Wire.read();
-  }
- 
-  // Convert the data to lux
-  int exponent1 = (data1[0] & 0xF0) >> 4;
-  int mantissa1 = ((data1[0] & 0x0F) << 4) | (data1[1] & 0x0F);
-  float lux = pow(2, exponent1) * mantissa1 * 0.045;
-  return lux;
-}
-
-void ledBlink(int ledPin, int flashes, int evenOn, int evenOff, int oddOn, int oddOff)
+void setup ()
 {
-    // Utility function for blinking an LED.
-    // It intentionally blocks with delay() to buy time for processes.
-    bool even = false;
-    for(int i=0; i<flashes; i++)
+    watchdog_counter = 0;
+    pinMode(rainPin, INPUT);
+    attachPCINT(digitalPinToPCINT(rainPin), recordTip, FALLING); 
+    PCMSK |= (1 << rainPin); //Enable interrupt handler for our chosen interrupt pin (PCINT1/PB1/pin 6)
+    GIMSK |= (1 << PCIE); //Enable PCINT in the general interrupt
+
+    //Serial.begin(9600);
+   
+    TinyWireM.begin();
+            
+   // ---- LoRa transceiver -------------------
+   //replace the LoRa.begin(---E-) argument with your location's frequency 
+   //433E6 for Asia
+   //866E6 for Europe
+   //915E6 for North America
+    if (!LoRa.begin(915E6))
     {
-        digitalWrite(ledPin, HIGH);
-        
-        if (even == false)
-            delay(evenOn);
-        else
-            delay(oddOn);
-            
-        digitalWrite(ledPin, LOW);
-        
-        if (even == false)
-            delay(evenOff);
-        else
-            delay(oddOff);
-            
-        even = !even;
+      while (1);
     }
+    LoRa.setSyncWord(0xF3); // Change sync word (0xF3) to match the receiver to avoid receiving messages from other LoRa transceivers;ranges from 0-0xFF
+    delay(500);
+    LoRaSend();
+    
+  setup_watchdog(9); //Wake up after 9 seconds 
+}
+
+// #### Main loop ################################################
+
+void loop ()
+{  
+   sleepNow();  
+    // I was woken by either a bucket tip or the watchdog timer. Either way, I'm awake.;
+       
+   if (RainFlag == 1) {
+    TipCount++; // increment the tip counter 
+     RainFlag = 0;
+       
+  }
+  
+   if(watchdog_counter > 10)  // set to an interval that makes sense 
+                              //(1 minute  = 60 seconds/9 seconds per watchdog cycle = 6.7)
+  {
+    watchdog_counter = 0;
+    LoRaSend();
+    TipCount = -1;  // on my build, one tip count is added at each watchdog timer interval, here I  subtract it out; if you
+                    //are able to solve this with hardware (maybe with minimizing electrical noise via capacitors??) then 
+                    //replace "-1" with "0".
+  } 
+   
+}
+
+// FUNCTIONS CALLED IN SETUP OR THE LOOP
+
+void recordTip()
+{
+    // I heard something. Probably a tip event! (software debouncing--adjust the 225 up or down until the tip counter increases by 1 for every tip)
+    if((millis() - ContactBounceTimeRain) > 225); {
+    RainFlag = 1;
+    ContactBounceTimeRain = millis();
+    }
+ }
+
+void LoRaSend() {
+
+   float Tips = TipCount/2;
+   //float Tips = TipCount;
+   float Rain = Tips*RainHt;
+   String RainCm = String(Rain, 3); //to show rainfall with 3 numbers after the decimal point
+   delay(250);
+   //float finalVolt = voltMeasure();
+   const int Key = XXXX; //enter a unique 4-digit number that needs to be identical to that used for the receiver
+   
+   LoRa.beginPacket();
+   LoRa.print (Key);
+   LoRa.print (":");
+   LoRa.print (Tips);
+   LoRa.print (":");
+   LoRa.print (RainCm);
+   LoRa.endPacket(); 
+   delay(500);
+}
+
+void sleepNow() 
+{
+  
+  // disable ADC
+  ADCSRA = 0;
+  set_sleep_mode(SLEEP_MODE_IDLE);   // sleep mode is set here
+
+  sleep_enable();          // enables the sleep bit in the mcucr register
+  // so sleep is possible. just a safety pin
+
+  sleep_mode();            // here the device is actually put to sleep!!
+  // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
+  sleep_disable();         // first thing after waking from sleep:
+  // disable sleep...
+}
+
+void setup_watchdog(int timerPrescaler) {
+
+  if (timerPrescaler > 9 ) timerPrescaler = 9; //Correct incoming amount if need be
+
+  byte bb = timerPrescaler & 7; 
+  if (timerPrescaler > 7) bb |= (1<<5); //Set the special 5th bit if necessary
+
+  //This order of commands is important and cannot be combined
+  MCUSR &= ~(1<<WDRF); //Clear the watch dog reset
+  WDTCR |= (1<<WDCE) | (1<<WDE); //Set WD_change enable, set WD enable
+  WDTCR = bb; //Set new watchdog timeout value
+  WDTCR |= _BV(WDIE); //Set the interrupt enable, this will keep unit from resetting after each int
 }
