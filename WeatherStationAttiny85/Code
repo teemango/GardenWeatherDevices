@@ -13,10 +13,8 @@ Code related to debouncing of the reed swtich was sourced from: https://www.yout
 
 #include <TinyLoRa.h>
 #include <TinyWireM.h>
-//#include <avr/wdt.h>  /watchdog
 #include <avr/sleep.h>
 #include "PinChangeInterrupt.h"
-//#include <avr/interrupt.h>
 
 // DEFINITIIONS OF PINS AND VARIABLES
 
@@ -24,14 +22,11 @@ Code related to debouncing of the reed swtich was sourced from: https://www.yout
 #define rainPin PB4
 
 volatile byte RainFlag = 0; //detect rain interrupt
-//#define RainHt 0.03
-float RainHt = 0.1;// rain height in cm per tip 
-int TipCount = 0;
-//unsigned int TipCount = 0; //tipping bucket tip count
-volatile unsigned long ContactBounceTimeRain = 0;
-//#define Tip 0.02806  //replace this number (cm of rain per tip) based on the area of your rain collector;
+float RainHt = 0.1;// rain height in cm per tip; replace this number (cm of rain per tip) based on the area of your rain collector;
                       // Cm of rain per tip = tipping bucket volume in cubic centimeters divided by the 
                       // catchment area, in square cm, of your rain collector 
+int TipCount = 0;
+volatile unsigned long ContactBounceTimeRain = 0;
 //Watchdog counter
 volatile int watchdog_counter;
 
@@ -57,8 +52,6 @@ void setup ()
     PCMSK |= (1 << rainPin); //Enable interrupt handler for our chosen interrupt pin (PCINT1/PB1/pin 6)
     GIMSK |= (1 << PCIE); //Enable PCINT in the general interrupt
 
-    //Serial.begin(9600);
-   
     TinyWireM.begin();
             
    // ---- LoRa transceiver -------------------
